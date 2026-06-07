@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sumas Rápidas</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1923;
+    --card: #162032;
+    --accent: #f7c948;
+    --accent2: #ff6b6b;
+    --green: #6bcb77;
+    --blue: #4d96ff;
+    --text: #f0f4ff;
+    --muted: #7a8ba8;
+    --radius: 18px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 16px 12px 0;
+    overflow-x: hidden;
+  }
+
+  /* Fondo animado */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 20% 30%, rgba(77,150,255,0.07) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(247,201,72,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 20px;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    width: 100%;
+  }
+  .header h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2rem, 8vw, 2.8rem);
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-shadow: 0 0 30px rgba(247,201,72,0.35);
+    line-height: 1.1;
+  }
+  .header p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* BARRA DE PROGRESO CIRCULAR DEL TIEMPO */
+  .timer-ring-wrap {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+  }
+  .timer-ring-wrap svg {
+    transform: rotate(-90deg);
+  }
+  .ring-bg { fill: none; stroke: #1e2d42; stroke-width: 7; }
+  .ring-fg { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+    stroke-dasharray: 245;
+    stroke-dashoffset: 0;
+  }
+  .timer-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .timer-num {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.7rem;
+    line-height: 1;
+    color: var(--accent);
+    transition: color 0.3s;
+  }
+  .timer-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 10px 18px;
+    border: 1px solid rgba(255,255,255,0.05);
+    gap: 8px;
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+  }
+  .stat-val {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-divider {
+    width: 1px;
+    height: 32px;
+    background: rgba(255,255,255,0.07);
+  }
+
+  /* PROGRESS DOTS */
+  .progress-dots {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+  .dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #1e2d42;
+    border: 2px solid #2a3e57;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 900;
+    transition: all 0.3s ease;
+  }
+  .dot.correct { background: var(--green); border-color: var(--green); color: #0f1923; }
+  .dot.wrong   { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .dot.current { border-color: var(--accent); box-shadow: 0 0 12px rgba(247,201,72,0.5); animation: pulse-dot 1s infinite; }
+
+  @keyframes pulse-dot {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+
+  /* TARJETA DE PREGUNTA */
+  .question-card {
+    width: 100%;
+    background: var(--card);
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 20px 24px 18px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .question-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--accent), var(--accent2));
+    border-radius: 24px 24px 0 0;
+  }
+
+  .question-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .q-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .question-display {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(3.5rem, 14vw, 5rem);
+    color: var(--text);
+    letter-spacing: 4px;
+    line-height: 1;
+    transition: all 0.2s;
+  }
+  .question-display.shake {
+    animation: shake 0.35s ease;
+    color: var(--accent2);
+  }
+  .question-display.correct-anim {
+    animation: pop 0.35s ease;
+    color: var(--green);
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-10px); }
+    40% { transform: translateX(10px); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(8px); }
+  }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  /* PANTALLA RESPUESTA */
+  .answer-display {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.2rem;
+    color: var(--blue);
+    min-height: 2.5rem;
+    letter-spacing: 4px;
+    margin-top: 6px;
+    transition: color 0.2s;
+  }
+  .answer-display.has-value { color: var(--accent); }
+
+  /* FEEDBACK */
+  .feedback-msg {
+    height: 22px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    transition: opacity 0.3s;
+    opacity: 0;
+  }
+  .feedback-msg.show { opacity: 1; }
+  .feedback-msg.ok { color: var(--green); }
+  .feedback-msg.err { color: var(--accent2); }
+
+  /* TECLADO NUMÉRICO */
+  .keyboard-wrap {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .keyboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .key-btn {
+    background: #1a2d44;
+    border: 1.5px solid #2a3e57;
+    border-radius: 14px;
+    color: var(--text);
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.6rem;
+    padding: 0;
+    height: 62px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .key-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.08);
+    opacity: 0;
+    transition: opacity 0.12s;
+    border-radius: inherit;
+  }
+  .key-btn:active::after { opacity: 1; }
+  .key-btn:active { transform: scale(0.93); }
+
+  .key-btn.key-0  { grid-column: 1; }
+  .key-btn.key-del {
+    grid-column: 2;
+    background: #1f2b3e;
+    font-size: 1.3rem;
+    color: var(--accent2);
+    border-color: #3a3050;
+  }
+  .key-btn.key-ok {
+    grid-column: 3;
+    background: var(--accent);
+    color: #0f1923;
+    border-color: var(--accent);
+    font-size: 1.1rem;
+    font-weight: 900;
+    font-family: 'Nunito', sans-serif;
+  }
+  .key-btn.key-ok:active { background: #d4a933; border-color: #d4a933; }
+
+  /* PANTALLA START */
+  .start-screen, .result-screen {
+    width: 100%;
+    background: var(--card);
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 28px 24px 24px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .big-emoji {
+    font-size: 4rem;
+    display: block;
+    margin-bottom: 12px;
+  }
+  .start-screen h2, .result-screen h2 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.9rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .start-screen p, .result-screen p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .start-btn {
+    margin-top: 22px;
+    background: var(--accent);
+    color: #0f1923;
+    border: none;
+    border-radius: 50px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    padding: 14px 44px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 20px rgba(247,201,72,0.35);
+    display: inline-block;
+  }
+  .start-btn:active { transform: scale(0.96); background: #d4a933; }
+
+  /* RESULT SCREEN */
+  .score-big {
+    font-family: 'Fredoka One', cursive;
+    font-size: 5rem;
+    line-height: 1;
+    margin: 8px 0;
+  }
+  .score-label { font-size: 0.9rem; color: var(--muted); }
+  .stars {
+    font-size: 2.2rem;
+    margin: 10px 0;
+    letter-spacing: 4px;
+  }
+  .result-detail {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 14px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .result-detail .rd-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .result-detail .rd-val {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.7rem;
+  }
+  .result-detail .rd-lbl {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* TIMEOUT OVERLAY */
+  .timeout-banner {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Fredoka One', cursive;
+    font-size: 3rem;
+    color: var(--accent2);
+    text-align: center;
+    animation: fade-in 0.3s ease;
+  }
+  .timeout-banner.show { display: flex; flex-direction: column; gap: 8px; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* HIDE */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="timeout-banner" id="timeoutBanner">
+  ⏰<br>¡Tiempo!
+</div>
+
+<div class="container">
+  <div class="header">
+    <h1>⚡ Sumas Rápidas</h1>
+    <p>¡10 sumas de un dígito en 1 minuto!</p>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="start-screen" id="startScreen">
+    <span class="big-emoji">🧮</span>
+    <h2>¿Listo para sumar?</h2>
+    <p>Tendrás <strong>10 preguntas</strong> con sumas de un dígito.<br>
+    Tienes <strong>1 minuto</strong> para responder todo.<br>
+    ¡Usa el teclado de abajo para ingresar tu respuesta!</p>
+    <button class="start-btn" id="startBtn">¡Empezar!</button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="hidden" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:14px;">
+
+    <!-- Stats + timer row -->
+    <div style="display:flex;align-items:center;gap:14px;width:100%;">
+      <div class="stats-bar" style="flex:1;">
+        <div class="stat-item">
+          <span class="stat-val" id="statCorrectas" style="color:var(--green)">0</span>
+          <span class="stat-lbl">✓ Correctas</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-val" id="statErrores" style="color:var(--accent2)">0</span>
+          <span class="stat-lbl">✗ Errores</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-val" id="statPregunta" style="color:var(--blue)">1</span>
+          <span class="stat-lbl">Pregunta</span>
+        </div>
+      </div>
+      <div class="timer-ring-wrap">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <circle class="ring-bg" cx="45" cy="45" r="39"/>
+          <circle class="ring-fg" id="ringFg" cx="45" cy="45" r="39"/>
+        </svg>
+        <div class="timer-inner">
+          <span class="timer-num" id="timerNum">60</span>
+          <span class="timer-label">seg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress dots -->
+    <div class="progress-dots" id="progressDots"></div>
+
+    <!-- Question card -->
+    <div class="question-card">
+      <div class="question-top">
+        <span class="q-label">Calcula la suma</span>
+        <span class="q-label" id="qNumLabel">1 / 10</span>
+      </div>
+      <div class="question-display" id="questionDisplay">3 + 5 = ?</div>
+      <div class="answer-display" id="answerDisplay">_</div>
+      <div class="feedback-msg" id="feedbackMsg">¡Correcto!</div>
+    </div>
+
+    <!-- Keyboard -->
+    <div class="keyboard-wrap">
+      <div class="keyboard-grid">
+        <button class="key-btn" data-val="7">7</button>
+        <button class="key-btn" data-val="8">8</button>
+        <button class="key-btn" data-val="9">9</button>
+
+        <button class="key-btn" data-val="4">4</button>
+        <button class="key-btn" data-val="5">5</button>
+        <button class="key-btn" data-val="6">6</button>
+
+        <button class="key-btn" data-val="1">1</button>
+        <button class="key-btn" data-val="2">2</button>
+        <button class="key-btn" data-val="3">3</button>
+
+        <button class="key-btn key-0" data-val="0">0</button>
+        <button class="key-btn key-del" data-val="del">⌫</button>
+        <button class="key-btn key-ok" data-val="ok">OK ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="result-screen hidden" id="resultScreen">
+    <span class="big-emoji" id="resultEmoji">🎉</span>
+    <h2 id="resultTitle">¡Excelente!</h2>
+    <div class="stars" id="resultStars">⭐⭐⭐</div>
+    <div class="score-label">Puntaje</div>
+    <div class="score-big" id="scoreBig" style="color:var(--accent)">10/10</div>
+    <div class="result-detail">
+      <div class="rd-item">
+        <span class="rd-val" id="rdCorrectas" style="color:var(--green)">0</span>
+        <span class="rd-lbl">✓ Correctas</span>
+      </div>
+      <div class="rd-item">
+        <span class="rd-val" id="rdErrores" style="color:var(--accent2)">0</span>
+        <span class="rd-lbl">✗ Errores</span>
+      </div>
+      <div class="rd-item">
+        <span class="rd-val" id="rdTiempo" style="color:var(--blue)">0s</span>
+        <span class="rd-lbl">⏱ Tiempo</span>
+      </div>
+    </div>
+    <button class="start-btn" id="restartBtn">¡Jugar de nuevo!</button>
+  </div>
+</div>
+
+<script>
+const TOTAL = 10;
+const TIME_LIMIT = 60;
+const CIRCUMFERENCE = 245;
+
+let questions = [];
+let current = 0;
+let correctas = 0;
+let errores = 0;
+let inputVal = '';
+let timeLeft = TIME_LIMIT;
+let timerInterval = null;
+let startTime = null;
+let gameActive = false;
+
+const startScreen  = document.getElementById('startScreen');
+const gameScreen   = document.getElementById('gameScreen');
+const resultScreen = document.getElementById('resultScreen');
+const startBtn     = document.getElementById('startBtn');
+const restartBtn   = document.getElementById('restartBtn');
+const questionDisplay = document.getElementById('questionDisplay');
+const answerDisplay   = document.getElementById('answerDisplay');
+const feedbackMsg     = document.getElementById('feedbackMsg');
+const timerNum        = document.getElementById('timerNum');
+const ringFg          = document.getElementById('ringFg');
+const progressDots    = document.getElementById('progressDots');
+const statCorrectas   = document.getElementById('statCorrectas');
+const statErrores     = document.getElementById('statErrores');
+const statPregunta    = document.getElementById('statPregunta');
+const qNumLabel       = document.getElementById('qNumLabel');
+const timeoutBanner   = document.getElementById('timeoutBanner');
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+function generateQuestions() {
+  questions = [];
+  for (let i = 0; i < TOTAL; i++) {
+    const a = randInt(1, 9);
+    const b = randInt(1, 9);
+    questions.push({ a, b, answer: a + b });
+  }
+}
+
+function buildDots() {
+  progressDots.innerHTML = '';
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' current' : '');
+    d.id = `dot-${i}`;
+    d.textContent = i + 1;
+    progressDots.appendChild(d);
+  }
+}
+
+function updateDot(index, type) {
+  const d = document.getElementById(`dot-${index}`);
+  if (!d) return;
+  d.classList.remove('current', 'correct', 'wrong');
+  if (type) d.classList.add(type);
+}
+
+function setCurrentDot(index) {
+  const d = document.getElementById(`dot-${index}`);
+  if (d) d.classList.add('current');
+}
+
+function updateTimer() {
+  timerNum.textContent = timeLeft;
+  const offset = CIRCUMFERENCE * (1 - timeLeft / TIME_LIMIT);
+  ringFg.style.strokeDashoffset = offset;
+
+  if (timeLeft <= 10) {
+    ringFg.style.stroke = 'var(--accent2)';
+    timerNum.style.color = 'var(--accent2)';
+  } else if (timeLeft <= 20) {
+    ringFg.style.stroke = '#ff9f43';
+    timerNum.style.color = '#ff9f43';
+  } else {
+    ringFg.style.stroke = 'var(--accent)';
+    timerNum.style.color = 'var(--accent)';
+  }
+}
+
+function startTimer() {
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timeLeft = 0;
+      updateTimer();
+      showTimeout();
+    }
+  }, 1000);
+}
+
+function showTimeout() {
+  if (!gameActive) return;
+  gameActive = false;
+  timeoutBanner.classList.add('show');
+  setTimeout(() => {
+    timeoutBanner.classList.remove('show');
+    showResult();
+  }, 1500);
+}
+
+function showQuestion() {
+  const q = questions[current];
+  questionDisplay.className = 'question-display';
+  questionDisplay.textContent = `${q.a} + ${q.b} = ?`;
+  answerDisplay.className = 'answer-display';
+  answerDisplay.textContent = '_';
+  feedbackMsg.className = 'feedback-msg';
+  inputVal = '';
+  statPregunta.textContent = current + 1;
+  qNumLabel.textContent = `${current + 1} / ${TOTAL}`;
+  setCurrentDot(current);
+}
+
+function updateAnswerDisplay() {
+  if (inputVal === '') {
+    answerDisplay.className = 'answer-display';
+    answerDisplay.textContent = '_';
+  } else {
+    answerDisplay.className = 'answer-display has-value';
+    answerDisplay.textContent = inputVal;
+  }
+}
+
+function submitAnswer() {
+  if (!gameActive) return;
+  if (inputVal === '') return;
+  const q = questions[current];
+  const userAns = parseInt(inputVal, 10);
+  const isCorrect = userAns === q.answer;
+
+  if (isCorrect) {
+    correctas++;
+    statCorrectas.textContent = correctas;
+    questionDisplay.classList.add('correct-anim');
+    feedbackMsg.className = 'feedback-msg show ok';
+    feedbackMsg.textContent = '¡Correcto! ✓';
+    updateDot(current, 'correct');
+  } else {
+    errores++;
+    statErrores.textContent = errores;
+    questionDisplay.classList.add('shake');
+    feedbackMsg.className = 'feedback-msg show err';
+    feedbackMsg.textContent = `✗ Era ${q.answer}`;
+    updateDot(current, 'wrong');
+  }
+
+  inputVal = '';
+  current++;
+
+  setTimeout(() => {
+    if (current >= TOTAL) {
+      clearInterval(timerInterval);
+      gameActive = false;
+      showResult();
+    } else {
+      showQuestion();
+    }
+  }, isCorrect ? 450 : 650);
+}
+
+function handleKey(val) {
+  if (!gameActive) return;
+  if (val === 'del') {
+    inputVal = inputVal.slice(0, -1);
+  } else if (val === 'ok') {
+    submitAnswer();
+    return;
+  } else {
+    if (inputVal.length >= 2) return;
+    inputVal += val;
+  }
+  updateAnswerDisplay();
+}
+
+function startGame() {
+  correctas = 0; errores = 0; current = 0;
+  timeLeft = TIME_LIMIT; inputVal = '';
+  gameActive = true;
+
+  startScreen.classList.add('hidden');
+  resultScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+
+  statCorrectas.textContent = '0';
+  statErrores.textContent = '0';
+  ringFg.style.strokeDashoffset = 0;
+  ringFg.style.stroke = 'var(--accent)';
+  timerNum.style.color = 'var(--accent)';
+  timerNum.textContent = '60';
+
+  generateQuestions();
+  buildDots();
+  showQuestion();
+  startTimer();
+}
+
+function showResult() {
+  gameScreen.classList.add('hidden');
+  resultScreen.classList.remove('hidden');
+
+  const elapsed = Math.round((Date.now() - startTime) / 1000);
+  const pct = correctas / TOTAL;
+
+  document.getElementById('rdCorrectas').textContent = correctas;
+  document.getElementById('rdErrores').textContent = errores;
+  document.getElementById('rdTiempo').textContent = Math.min(elapsed, 60) + 's';
+  document.getElementById('scoreBig').textContent = `${correctas}/${TOTAL}`;
+
+  let emoji, title, stars;
+  if (pct === 1)       { emoji = '🏆'; title = '¡Perfecto!';       stars = '⭐⭐⭐'; }
+  else if (pct >= 0.8) { emoji = '🎉'; title = '¡Muy bien!';       stars = '⭐⭐⭐'; }
+  else if (pct >= 0.6) { emoji = '😊'; title = '¡Buen trabajo!';   stars = '⭐⭐'; }
+  else if (pct >= 0.4) { emoji = '🙂'; title = 'Puedes mejorar';   stars = '⭐'; }
+  else                 { emoji = '💪'; title = '¡Sigue practicando!'; stars = '✨'; }
+
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultStars').textContent = stars;
+}
+
+// EVENT LISTENERS
+startBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('click', startGame);
+
+document.querySelectorAll('.key-btn').forEach(btn => {
+  btn.addEventListener('click', () => handleKey(btn.dataset.val));
+  btn.addEventListener('touchstart', e => { e.preventDefault(); handleKey(btn.dataset.val); }, { passive: false });
+});
+
+// Teclado físico (computadora)
+document.addEventListener('keydown', e => {
+  if (!gameActive) return;
+  if (e.key >= '0' && e.key <= '9') { handleKey(e.key); return; }
+  if (e.key === 'Backspace') { handleKey('del'); return; }
+  if (e.key === 'Enter') { handleKey('ok'); return; }
+});
+</script>
+</body>
+</html>
